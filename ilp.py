@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ILP Simulator - Mitigasi Data Hazards (RAW, WAR, & WAW)
+ILP Simulator - Mitigasi Data Hazards (WAW)
 """
 
 from dataclasses import dataclass
@@ -28,22 +28,8 @@ instructions = [
 
 
 # -------------------------------------------------
-# Functions to check Data Hazards
+# Function to check WAW Data Hazard
 # -------------------------------------------------
-
-def check_raw(inst1, inst2):
-    """
-    RAW (Read-After-Write): inst2 membaca register yang ditulis oleh inst1
-    """
-    return inst1.destination != "" and inst1.destination in inst2.sources
-
-
-def check_war(inst1, inst2):
-    """
-    WAR (Write-After-Read): inst2 menulis ke register yang dibaca oleh inst1
-    """
-    return inst2.destination != "" and inst2.destination in inst1.sources
-
 
 def check_waw(inst1, inst2):
     """
@@ -54,9 +40,9 @@ def check_waw(inst1, inst2):
 
 def has_dependency(inst1, inst2):
     """
-    Mengembalikan True jika terdapat dependensi RAW, WAR, atau WAW antara inst1 dan inst2.
+    Mengembalikan True jika terdapat dependensi WAW antara inst1 dan inst2.
     """
-    return check_raw(inst1, inst2) or check_war(inst1, inst2) or check_waw(inst1, inst2)
+    return check_waw(inst1, inst2)
 
 
 # -------------------------------------------------
@@ -152,29 +138,18 @@ def parallel_execution(instructions):
 def show_dependencies(instructions):
 
     print("\n" + "=" * 50)
-    print("DEPENDENCY ANALYSIS")
+    print("DEPENDENCY ANALYSIS (WAW)")
     print("=" * 50)
 
     found = False
 
     for i in range(len(instructions)):
         for j in range(i + 1, len(instructions)):
-            hazards = []
-
-            if check_raw(instructions[i], instructions[j]):
-                hazards.append(f"RAW (Reg: {instructions[i].destination})")
-
-            if check_war(instructions[i], instructions[j]):
-                hazards.append(f"WAR (Reg: {instructions[j].destination})")
-
             if check_waw(instructions[i], instructions[j]):
-                hazards.append(f"WAW (Reg: {instructions[i].destination})")
-
-            if hazards:
                 print(
                     f"{instructions[j].name} depends on "
                     f"{instructions[i].name} "
-                    f"[{', '.join(hazards)}]"
+                    f"[WAW (Reg: {instructions[i].destination})]"
                 )
                 found = True
 
