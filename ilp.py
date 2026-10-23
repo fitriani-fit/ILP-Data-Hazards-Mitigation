@@ -129,6 +129,7 @@ def plot_dependency_graph(instructions):
     plt.axis('off')
     plt.tight_layout()
     print("\n[INFO] Membuka jendela visualisasi Dependency Graph...")
+    plt.savefig("dependency_graph.png", dpi=300)
     plt.show()
 
 
