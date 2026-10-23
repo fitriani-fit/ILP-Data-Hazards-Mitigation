@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-ILP Simulator - Mitigasi Data Hazards (RAW, WAR, WAW)
+ILP Simulator - Mitigasi Data Hazards (RAW, WAR, & WAW)
+Kolaborasi: Della (RAW), Sinta (WAR), Fitri (WAW & Graph)
 """
 
 from dataclasses import dataclass
@@ -28,29 +29,61 @@ instructions = [
 
 
 # -------------------------------------------------
-# Fungsi Deteksi Data Hazards (RAW, WAR, WAW)
+# Functions to check Data Hazards (RAW, WAR, WAW)
 # -------------------------------------------------
 
 def check_raw(inst1, inst2):
-    # RAW: inst2 membaca register yang ditulis oleh inst1
-    return inst1.destination and inst1.destination in inst2.sources
+    """RAW (Read-After-Write): inst2 membaca register yang ditulis oleh inst1"""
+    return inst1.destination != "" and inst1.destination in inst2.sources
 
 
 def check_war(inst1, inst2):
-    # WAR: inst2 menulis ke register yang dibaca oleh inst1
-    return inst2.destination and inst2.destination in inst1.sources
+    """WAR (Write-After-Read): inst2 menulis ke register yang dibaca oleh inst1"""
+    return inst2.destination != "" and inst2.destination in inst1.sources
 
 
 def check_waw(inst1, inst2):
-    # WAW: inst2 menulis ke register yang sama dengan tulisan inst1
+    """WAW (Write-After-Write): inst2 menulis ke register yang sama dengan tulisan inst1"""
     return inst1.destination != "" and inst2.destination != "" and inst1.destination == inst2.destination
 
 
 def has_dependency(inst1, inst2):
-    """
-    Mengembalikan True jika terdapat dependensi RAW, WAR, atau WAW.
-    """
+    """Mengembalikan True jika terdapat dependensi RAW, WAR, atau WAW"""
     return check_raw(inst1, inst2) or check_war(inst1, inst2) or check_waw(inst1, inst2)
+
+
+# -------------------------------------------------
+# Dependency Analysis & Graph Logic
+# -------------------------------------------------
+
+def show_dependencies(instructions):
+    print("\n" + "=" * 50)
+    print("DEPENDENCY ANALYSIS (RAW, WAR, WAW)")
+    print("=" * 50)
+
+    found = False
+
+    for i in range(len(instructions)):
+        for j in range(i + 1, len(instructions)):
+            i1, i2 = instructions[i], instructions[j]
+            hazards = []
+
+            if check_raw(i1, i2):
+                hazards.append(f"RAW (Reg: {i1.destination})")
+            if check_war(i1, i2):
+                hazards.append(f"WAR (Reg: {i2.destination})")
+            if check_waw(i1, i2):
+                hazards.append(f"WAW (Reg: {i1.destination})")
+
+            if hazards:
+                print(
+                    f"{i2.name} depends on {i1.name} "
+                    f"[{', '.join(hazards)}]"
+                )
+                found = True
+
+    if not found:
+        print("No dependencies found.")
 
 
 # -------------------------------------------------
@@ -66,7 +99,6 @@ def sequential_execution(instructions):
 
     for instruction in instructions:
         cycle += 1
-
         print(
             f"Cycle {cycle}: Executing {instruction.name} "
             f"({instruction.destination} = "
@@ -74,7 +106,6 @@ def sequential_execution(instructions):
         )
 
     print(f"\nTotal Sequential Cycles: {cycle}")
-
     return cycle
 
 
@@ -89,20 +120,16 @@ def parallel_execution(instructions):
 
     completed = set()
     remaining = instructions.copy()
-
     cycle = 0
 
     while remaining:
-
         cycle += 1
         current_cycle = []
 
         for instruction in remaining:
-
             dependencies_satisfied = True
 
             for previous in instructions:
-
                 if previous.name == instruction.name:
                     break
 
@@ -118,7 +145,7 @@ def parallel_execution(instructions):
 
         for instruction in current_cycle:
             print(
-                f"    -> {instruction.name}: "
+                f"  -> {instruction.name}: "
                 f"{instruction.destination} = "
                 f"{' + '.join(instruction.sources)}"
             )
@@ -128,40 +155,7 @@ def parallel_execution(instructions):
             remaining.remove(instruction)
 
     print(f"\nTotal ILP Cycles: {cycle}")
-
     return cycle
-
-
-# -------------------------------------------------
-# Dependency Analysis (Gabungan RAW, WAR, WAW)
-# -------------------------------------------------
-
-def show_dependencies(instructions):
-    print("\n" + "=" * 50)
-    print("DEPENDENCY ANALYSIS (RAW, WAR, WAW)")
-    print("=" * 50)
-
-    found = False
-
-    for i in range(len(instructions)):
-        for j in range(i + 1, len(instructions)):
-            inst1 = instructions[i]
-            inst2 = instructions[j]
-            
-            hazards = []
-            if check_raw(inst1, inst2):
-                hazards.append("RAW")
-            if check_war(inst1, inst2):
-                hazards.append("WAR")
-            if check_waw(inst1, inst2):
-                hazards.append("WAW")
-            
-            if hazards:
-                print(f"{inst2.name} depends on {inst1.name} -> Jenis Hazard: {', '.join(hazards)}")
-                found = True
-
-    if not found:
-        print("No dependencies found.")
 
 
 # -------------------------------------------------
@@ -175,7 +169,6 @@ def main():
     print("*" * 60)
 
     print("\nInstruction Set:")
-
     for instruction in instructions:
         print(
             f"{instruction.name}: "
@@ -183,10 +176,16 @@ def main():
             f"{' + '.join(instruction.sources)}"
         )
 
+    # Show dependencies
     show_dependencies(instructions)
+
+    # Sequential execution
     sequential_cycles = sequential_execution(instructions)
+
+    # Parallel execution
     parallel_cycles = parallel_execution(instructions)
 
+    # Calculate speedup
     speedup = sequential_cycles / parallel_cycles
     efficiency = (speedup / len(instructions)) * 100
 
@@ -205,6 +204,10 @@ def main():
         "independent instructions to execute in parallel."
     )
 
+
+# -------------------------------------------------
+# Run Program
+# -------------------------------------------------
 
 if __name__ == "__main__":
     main()
