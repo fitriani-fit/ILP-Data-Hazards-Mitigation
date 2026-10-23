@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-ILP Simulator - Mitigasi Data Hazards (RAW, WAR, & WAW)
+ILP Simulator - Mitigasi Data Hazards (RAW, WAR, & WAW) dengan Visualisasi Grafik
 Kolaborasi: Della (RAW), Sinta (WAR), Fitri (WAW & Graph)
 """
 
 from dataclasses import dataclass
+import matplotlib.pyplot as plt
+import networkx as nx
 
 
 @dataclass
@@ -33,35 +35,33 @@ instructions = [
 # -------------------------------------------------
 
 def check_raw(inst1, inst2):
-    """RAW (Read-After-Write): inst2 membaca register yang ditulis oleh inst1"""
     return inst1.destination != "" and inst1.destination in inst2.sources
 
-
 def check_war(inst1, inst2):
-    """WAR (Write-After-Read): inst2 menulis ke register yang dibaca oleh inst1"""
     return inst2.destination != "" and inst2.destination in inst1.sources
 
-
 def check_waw(inst1, inst2):
-    """WAW (Write-After-Write): inst2 menulis ke register yang sama dengan tulisan inst1"""
     return inst1.destination != "" and inst2.destination != "" and inst1.destination == inst2.destination
 
-
 def has_dependency(inst1, inst2):
-    """Mengembalikan True jika terdapat dependensi RAW, WAR, atau WAW"""
     return check_raw(inst1, inst2) or check_war(inst1, inst2) or check_waw(inst1, inst2)
 
 
 # -------------------------------------------------
-# Dependency Analysis & Graph Logic
+# Dependency Analysis & Visual Graph Plotting
 # -------------------------------------------------
 
-def show_dependencies(instructions):
+def show_and_plot_dependencies(instructions):
     print("\n" + "=" * 50)
     print("DEPENDENCY ANALYSIS (RAW, WAR, WAW)")
     print("=" * 50)
 
     found = False
+    G = nx.DiGraph() # Membuat objek Directed Graph untuk NetworkX
+
+    # Tambahkan semua node instruksi ke graf
+    for inst in instructions:
+        G.add_node(inst.name)
 
     for i in range(len(instructions)):
         for j in range(i + 1, len(instructions)):
@@ -69,21 +69,41 @@ def show_dependencies(instructions):
             hazards = []
 
             if check_raw(i1, i2):
-                hazards.append(f"RAW (Reg: {i1.destination})")
+                hazards.append(f"RAW({i1.destination})")
             if check_war(i1, i2):
-                hazards.append(f"WAR (Reg: {i2.destination})")
+                hazards.append(f"WAR({i2.destination})")
             if check_waw(i1, i2):
-                hazards.append(f"WAW (Reg: {i1.destination})")
+                hazards.append(f"WAW({i1.destination})")
 
             if hazards:
-                print(
-                    f"{i2.name} depends on {i1.name} "
-                    f"[{', '.join(hazards)}]"
-                )
+                hazard_label = ", ".join(hazards)
+                print(f"{i2.name} depends on {i1.name} [{hazard_label}]")
+                # Tambahkan garis panah antar instruksi beserta label hazard-nya ke graf
+                G.add_edge(i1.name, i2.name, label=hazard_label)
                 found = True
 
     if not found:
         print("No dependencies found.")
+
+    # Render dan tampilkan grafik visual menggunakan Matplotlib
+    if found:
+        plt.figure(figsize=(8, 5))
+        pos = nx.spring_layout(G, seed=42) # Atur posisi node agar rapi
+        
+        # Gambar node, teks, dan garis panah
+        nx.draw_networkx_nodes(G, pos, node_size=700, node_color="skyblue")
+        nx.draw_networkx_labels(G, pos, font_size=12, font_weight="bold")
+        nx.draw_networkx_edges(G, pos, arrowstyle="->", arrowsize=20, edge_color="gray", width=2)
+        
+        # Gambar label hazard di atas garis panah
+        edge_labels = nx.get_edge_attributes(G, 'label')
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=9)
+
+        plt.title("Instruction Dependency Graph (RAW, WAR, WAW)")
+        plt.axis("off")
+        plt.tight_layout()
+        print("\n[INFO] Membuka jendela visualisasi Dependency Graph...")
+        plt.show()
 
 
 # -------------------------------------------------
@@ -96,14 +116,9 @@ def sequential_execution(instructions):
     print("=" * 50)
 
     cycle = 0
-
     for instruction in instructions:
         cycle += 1
-        print(
-            f"Cycle {cycle}: Executing {instruction.name} "
-            f"({instruction.destination} = "
-            f"{' + '.join(instruction.sources)})"
-        )
+        print(f"Cycle {cycle}: Executing {instruction.name} ({instruction.destination} = {' + '.join(instruction.sources)})")
 
     print(f"\nTotal Sequential Cycles: {cycle}")
     return cycle
@@ -128,11 +143,9 @@ def parallel_execution(instructions):
 
         for instruction in remaining:
             dependencies_satisfied = True
-
             for previous in instructions:
                 if previous.name == instruction.name:
                     break
-
                 if has_dependency(previous, instruction):
                     if previous.name not in completed:
                         dependencies_satisfied = False
@@ -142,13 +155,8 @@ def parallel_execution(instructions):
                 current_cycle.append(instruction)
 
         print(f"\nCycle {cycle}:")
-
         for instruction in current_cycle:
-            print(
-                f"  -> {instruction.name}: "
-                f"{instruction.destination} = "
-                f"{' + '.join(instruction.sources)}"
-            )
+            print(f"  -> {instruction.name}: {instruction.destination} = {' + '.join(instruction.sources)}")
 
         for instruction in current_cycle:
             completed.add(instruction.name)
@@ -170,14 +178,10 @@ def main():
 
     print("\nInstruction Set:")
     for instruction in instructions:
-        print(
-            f"{instruction.name}: "
-            f"{instruction.destination} = "
-            f"{' + '.join(instruction.sources)}"
-        )
+        print(f"{instruction.name}: {instruction.destination} = {' + '.join(instruction.sources)}")
 
-    # Show dependencies
-    show_dependencies(instructions)
+    # Show dependencies and plot graphical representation
+    show_and_plot_dependencies(instructions)
 
     # Sequential execution
     sequential_cycles = sequential_execution(instructions)
@@ -199,15 +203,8 @@ def main():
     print(f"ILP Efficiency    : {efficiency:.2f}%")
 
     print("\nConclusion:")
-    print(
-        "ILP reduces execution cycles by allowing "
-        "independent instructions to execute in parallel."
-    )
+    print("ILP reduces execution cycles by allowing independent instructions to execute in parallel.")
 
-
-# -------------------------------------------------
-# Run Program
-# -------------------------------------------------
 
 if __name__ == "__main__":
     main()
