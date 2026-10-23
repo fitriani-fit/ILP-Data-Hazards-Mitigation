@@ -48,20 +48,15 @@ def has_dependency(inst1, inst2):
 
 
 # -------------------------------------------------
-# Dependency Analysis & Visual Graph Plotting
+# Dependency Analysis (Text Output)
 # -------------------------------------------------
 
-def show_and_plot_dependencies(instructions):
+def show_dependencies(instructions):
     print("\n" + "=" * 50)
     print("DEPENDENCY ANALYSIS (RAW, WAR, WAW)")
     print("=" * 50)
 
     found = False
-    G = nx.DiGraph() # Membuat objek Directed Graph untuk NetworkX
-
-    # Tambahkan semua node instruksi ke graf
-    for inst in instructions:
-        G.add_node(inst.name)
 
     for i in range(len(instructions)):
         for j in range(i + 1, len(instructions)):
@@ -78,32 +73,63 @@ def show_and_plot_dependencies(instructions):
             if hazards:
                 hazard_label = ", ".join(hazards)
                 print(f"{i2.name} depends on {i1.name} [{hazard_label}]")
-                # Tambahkan garis panah antar instruksi beserta label hazard-nya ke graf
-                G.add_edge(i1.name, i2.name, label=hazard_label)
                 found = True
 
     if not found:
         print("No dependencies found.")
 
-    # Render dan tampilkan grafik visual menggunakan Matplotlib
-    if found:
-        plt.figure(figsize=(8, 5))
-        pos = nx.spring_layout(G, seed=42) # Atur posisi node agar rapi
-        
-        # Gambar node, teks, dan garis panah
-        nx.draw_networkx_nodes(G, pos, node_size=700, node_color="skyblue")
-        nx.draw_networkx_labels(G, pos, font_size=12, font_weight="bold")
-        nx.draw_networkx_edges(G, pos, arrowstyle="->", arrowsize=20, edge_color="gray", width=2)
-        
-        # Gambar label hazard di atas garis panah
-        edge_labels = nx.get_edge_attributes(G, 'label')
-        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=9)
 
-        plt.title("Instruction Dependency Graph (RAW, WAR, WAW)")
-        plt.axis("off")
-        plt.tight_layout()
-        print("\n[INFO] Membuka jendela visualisasi Dependency Graph...")
-        plt.show()
+# -------------------------------------------------
+# Visualisasi Dependency Graph (NetworkX & Matplotlib)
+# -------------------------------------------------
+
+def plot_dependency_graph(instructions):
+    """
+    Membuat visualisasi Dependency Graph menggunakan NetworkX dan Matplotlib
+    """
+    G = nx.DiGraph()
+    
+    # 1. Tambahkan setiap instruksi sebagai node
+    for inst in instructions:
+        G.add_node(inst.name)
+        
+    # 2. Cek relasi hazard antar instruksi dan tambahkan sebagai edge (panah)
+    for i in range(len(instructions)):
+        for j in range(i + 1, len(instructions)):
+            inst1 = instructions[i]
+            inst2 = instructions[j]
+            
+            hazards = []
+            if check_raw(inst1, inst2):
+                hazards.append("RAW")
+            if check_war(inst1, inst2):
+                hazards.append("WAR")
+            if check_waw(inst1, inst2):
+                hazards.append("WAW")
+                
+            if hazards:
+                # Jika ada hazard, buat panah dari inst1 ke inst2 dengan label jenis hazardnya
+                hazard_label = "/".join(hazards)
+                G.add_edge(inst1.name, inst2.name, label=hazard_label)
+
+    # 3. Pengaturan Tampilan Grafik
+    plt.figure(figsize=(8, 6))
+    pos = nx.spring_layout(G, seed=42) # Mengatur posisi node agar rapi
+    
+    # Gambar node, edge, dan teks label
+    nx.draw_networkx_nodes(G, pos, node_color='#a1c4fd', node_size=2200)
+    nx.draw_networkx_edges(G, pos, arrowsize=20, edge_color='#555555', width=2)
+    nx.draw_networkx_labels(G, pos, font_size=12, font_weight='bold')
+    
+    # Menampilkan label jenis hazard (RAW/WAR/WAW) di atas garis panah
+    edge_labels = nx.get_edge_attributes(G, 'label')
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='red', font_weight='bold')
+    
+    plt.title('Instruction Dependency Graph (ILP Hazards)', fontsize=14, fontweight='bold')
+    plt.axis('off')
+    plt.tight_layout()
+    print("\n[INFO] Membuka jendela visualisasi Dependency Graph...")
+    plt.show()
 
 
 # -------------------------------------------------
@@ -156,7 +182,7 @@ def parallel_execution(instructions):
 
         print(f"\nCycle {cycle}:")
         for instruction in current_cycle:
-            print(f"  -> {instruction.name}: {instruction.destination} = {' + '.join(instruction.sources)}")
+            print(f"    -> {instruction.name}: {instruction.destination} = {' + '.join(instruction.sources)}")
 
         for instruction in current_cycle:
             completed.add(instruction.name)
@@ -180,8 +206,8 @@ def main():
     for instruction in instructions:
         print(f"{instruction.name}: {instruction.destination} = {' + '.join(instruction.sources)}")
 
-    # Show dependencies and plot graphical representation
-    show_and_plot_dependencies(instructions)
+    # Show dependencies text analysis
+    show_dependencies(instructions)
 
     # Sequential execution
     sequential_cycles = sequential_execution(instructions)
@@ -204,6 +230,9 @@ def main():
 
     print("\nConclusion:")
     print("ILP reduces execution cycles by allowing independent instructions to execute in parallel.")
+
+    # Render dan tampilkan grafik visual Dependency Graph
+    plot_dependency_graph(instructions)
 
 
 if __name__ == "__main__":
