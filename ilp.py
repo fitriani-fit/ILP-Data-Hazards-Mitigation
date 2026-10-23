@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ILP Simulator - Mitigasi Data Hazards (WAR)
+ILP Simulator - Mitigasi Data Hazards (WAW)
 """
 
 from dataclasses import dataclass
@@ -28,21 +28,21 @@ instructions = [
 
 
 # -------------------------------------------------
-# Function to check WAR Data Hazard
+# Function to check WAW Data Hazard
 # -------------------------------------------------
 
-def check_war(inst1, inst2):
+def check_waw(inst1, inst2):
     """
-    WAR (Write-After-Read): inst2 menulis ke register yang dibaca oleh inst1
+    WAW (Write-After-Write): inst2 menulis ke register yang sama dengan tulisan inst1
     """
-    return inst2.destination != "" and inst2.destination in inst1.sources
+    return inst1.destination != "" and inst2.destination != "" and inst1.destination == inst2.destination
 
 
 def has_dependency(inst1, inst2):
     """
-    Mengembalikan True jika terdapat dependensi WAR antara inst1 dan inst2.
+    Mengembalikan True jika terdapat dependensi WAW antara inst1 dan inst2.
     """
-    return check_war(inst1, inst2)
+    return check_waw(inst1, inst2)
 
 
 # -------------------------------------------------
@@ -138,18 +138,18 @@ def parallel_execution(instructions):
 def show_dependencies(instructions):
 
     print("\n" + "=" * 50)
-    print("DEPENDENCY ANALYSIS (WAR)")
+    print("DEPENDENCY ANALYSIS (WAW)")
     print("=" * 50)
 
     found = False
 
     for i in range(len(instructions)):
         for j in range(i + 1, len(instructions)):
-            if check_war(instructions[i], instructions[j]):
+            if check_waw(instructions[i], instructions[j]):
                 print(
                     f"{instructions[j].name} depends on "
                     f"{instructions[i].name} "
-                    f"[WAR (Reg: {instructions[j].destination})]"
+                    f"[WAW (Reg: {instructions[i].destination})]"
                 )
                 found = True
 
@@ -196,8 +196,8 @@ def main():
 
     print(f"Sequential Cycles : {sequential_cycles}")
     print(f"ILP Cycles        : {parallel_cycles}")
-    print(f"Speedup           : {speedup:.2f}x")
-    print(f"ILP Efficiency    : {efficiency:.2f}%")
+    print(f"Speedup            : {speedup:.2f}x")
+    print(f"ILP Efficiency     : {efficiency:.2f}%")
 
     print("\nConclusion:")
     print(
