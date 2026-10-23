@@ -7,8 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1dIco_ahE8Y0jsG-CdXeX4lyLw-jT88WZ
 """
 
-# Simulator from https://github.com/harshitasingh4863/instruction-level-parallelism-simulator.git
-
 from dataclasses import dataclass
 
 
@@ -34,20 +32,24 @@ instructions = [
 
 
 # -------------------------------------------------
-# Function to check dependency
-# -------------------------------------------------
+# Fungsi Deteksi RAW (Read-After-Write) Hazard
+
+def check_raw(inst1, inst2):
+    """
+    RAW (Read-After-Write) / True Dependency:
+    inst2 membaca (menggunakan) register yang ditulis oleh inst1.
+    """
+    if inst1.destination and inst1.destination in inst2.sources:
+        return True
+    return False
+
 
 def has_dependency(inst1, inst2):
     """
     Returns True if inst2 depends on inst1.
+    (Fokus implementasi RAW hazard)
     """
-
-    # RAW dependency:
-    # inst2 reads a register written by inst1
-    if inst1.destination in inst2.sources:
-        return True
-
-    return False
+    return check_raw(inst1, inst2)
 
 
 # -------------------------------------------------
@@ -121,7 +123,7 @@ def parallel_execution(instructions):
 
         for instruction in current_cycle:
             print(
-                f"  -> {instruction.name}: "
+                f"    -> {instruction.name}: "
                 f"{instruction.destination} = "
                 f"{' + '.join(instruction.sources)}"
             )
@@ -138,13 +140,13 @@ def parallel_execution(instructions):
 
 
 # -------------------------------------------------
-# Dependency Analysis
+# Dependency Analysis (Khusus RAW)
 # -------------------------------------------------
 
 def show_dependencies(instructions):
 
     print("\n" + "=" * 50)
-    print("DEPENDENCY ANALYSIS")
+    print("DEPENDENCY ANALYSIS (RAW HAZARDS)")
     print("=" * 50)
 
     found = False
@@ -153,18 +155,18 @@ def show_dependencies(instructions):
 
         for j in range(i + 1, len(instructions)):
 
-            if has_dependency(instructions[i], instructions[j]):
+            if check_raw(instructions[i], instructions[j]):
 
                 print(
                     f"{instructions[j].name} depends on "
                     f"{instructions[i].name} "
-                    f"(Register: {instructions[i].destination})"
+                    f"(RAW Hazard - Register: {instructions[i].destination})"
                 )
 
                 found = True
 
     if not found:
-        print("No dependencies found.")
+        print("No RAW dependencies found.")
 
 
 # -------------------------------------------------
@@ -211,8 +213,8 @@ def main():
 
     print(f"Sequential Cycles : {sequential_cycles}")
     print(f"ILP Cycles        : {parallel_cycles}")
-    print(f"Speedup            : {speedup:.2f}x")
-    print(f"ILP Efficiency     : {efficiency:.2f}%")
+    print(f"Speedup           : {speedup:.2f}x")
+    print(f"ILP Efficiency    : {efficiency:.2f}%")
 
     print("\nConclusion:")
     print(
