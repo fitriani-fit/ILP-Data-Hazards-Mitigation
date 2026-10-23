@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ILP Simulator - Mitigasi Data Hazards (WAW)
+ILP Simulator - Mitigasi Data Hazards (RAW, WAR, WAW)
 """
 
 from dataclasses import dataclass
@@ -28,21 +28,29 @@ instructions = [
 
 
 # -------------------------------------------------
-# Function to check WAW Data Hazard
+# Fungsi Deteksi Data Hazards (RAW, WAR, WAW)
 # -------------------------------------------------
 
+def check_raw(inst1, inst2):
+    # RAW: inst2 membaca register yang ditulis oleh inst1
+    return inst1.destination and inst1.destination in inst2.sources
+
+
+def check_war(inst1, inst2):
+    # WAR: inst2 menulis ke register yang dibaca oleh inst1
+    return inst2.destination and inst2.destination in inst1.sources
+
+
 def check_waw(inst1, inst2):
-    """
-    WAW (Write-After-Write): inst2 menulis ke register yang sama dengan tulisan inst1
-    """
+    # WAW: inst2 menulis ke register yang sama dengan tulisan inst1
     return inst1.destination != "" and inst2.destination != "" and inst1.destination == inst2.destination
 
 
 def has_dependency(inst1, inst2):
     """
-    Mengembalikan True jika terdapat dependensi WAW antara inst1 dan inst2.
+    Mengembalikan True jika terdapat dependensi RAW, WAR, atau WAW.
     """
-    return check_waw(inst1, inst2)
+    return check_raw(inst1, inst2) or check_war(inst1, inst2) or check_waw(inst1, inst2)
 
 
 # -------------------------------------------------
@@ -91,9 +99,6 @@ def parallel_execution(instructions):
 
         for instruction in remaining:
 
-            # Check whether all previous dependencies
-            # have already been completed
-
             dependencies_satisfied = True
 
             for previous in instructions:
@@ -109,18 +114,14 @@ def parallel_execution(instructions):
             if dependencies_satisfied:
                 current_cycle.append(instruction)
 
-        # Execute all independent instructions in the same cycle
-
         print(f"\nCycle {cycle}:")
 
         for instruction in current_cycle:
             print(
-                f"  -> {instruction.name}: "
+                f"    -> {instruction.name}: "
                 f"{instruction.destination} = "
                 f"{' + '.join(instruction.sources)}"
             )
-
-        # Mark instructions as completed
 
         for instruction in current_cycle:
             completed.add(instruction.name)
@@ -132,25 +133,31 @@ def parallel_execution(instructions):
 
 
 # -------------------------------------------------
-# Dependency Analysis
+# Dependency Analysis (Gabungan RAW, WAR, WAW)
 # -------------------------------------------------
 
 def show_dependencies(instructions):
-
     print("\n" + "=" * 50)
-    print("DEPENDENCY ANALYSIS (WAW)")
+    print("DEPENDENCY ANALYSIS (RAW, WAR, WAW)")
     print("=" * 50)
 
     found = False
 
     for i in range(len(instructions)):
         for j in range(i + 1, len(instructions)):
-            if check_waw(instructions[i], instructions[j]):
-                print(
-                    f"{instructions[j].name} depends on "
-                    f"{instructions[i].name} "
-                    f"[WAW (Reg: {instructions[i].destination})]"
-                )
+            inst1 = instructions[i]
+            inst2 = instructions[j]
+            
+            hazards = []
+            if check_raw(inst1, inst2):
+                hazards.append("RAW")
+            if check_war(inst1, inst2):
+                hazards.append("WAR")
+            if check_waw(inst1, inst2):
+                hazards.append("WAW")
+            
+            if hazards:
+                print(f"{inst2.name} depends on {inst1.name} -> Jenis Hazard: {', '.join(hazards)}")
                 found = True
 
     if not found:
@@ -162,7 +169,6 @@ def show_dependencies(instructions):
 # -------------------------------------------------
 
 def main():
-
     print("\n")
     print("*" * 60)
     print("      INSTRUCTION-LEVEL PARALLELISM SIMULATOR")
@@ -177,16 +183,10 @@ def main():
             f"{' + '.join(instruction.sources)}"
         )
 
-    # Show dependencies
     show_dependencies(instructions)
-
-    # Sequential execution
     sequential_cycles = sequential_execution(instructions)
-
-    # Parallel execution
     parallel_cycles = parallel_execution(instructions)
 
-    # Calculate speedup
     speedup = sequential_cycles / parallel_cycles
     efficiency = (speedup / len(instructions)) * 100
 
@@ -196,8 +196,8 @@ def main():
 
     print(f"Sequential Cycles : {sequential_cycles}")
     print(f"ILP Cycles        : {parallel_cycles}")
-    print(f"Speedup            : {speedup:.2f}x")
-    print(f"ILP Efficiency     : {efficiency:.2f}%")
+    print(f"Speedup           : {speedup:.2f}x")
+    print(f"ILP Efficiency    : {efficiency:.2f}%")
 
     print("\nConclusion:")
     print(
@@ -205,10 +205,6 @@ def main():
         "independent instructions to execute in parallel."
     )
 
-
-# -------------------------------------------------
-# Run Program
-# -------------------------------------------------
 
 if __name__ == "__main__":
     main()
